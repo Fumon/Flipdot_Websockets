@@ -1,6 +1,6 @@
 #define dmask 0x7C
 #define bmask 0x1F
-#define cmask 0x07
+#define cmask 0x2F
 
 #define dirpin 13
 
@@ -8,7 +8,7 @@
 #define state2 0x6
 
 #define dataDelayMicro 20
-#define etime 400
+#define etime 500
 
 #define first_flip_delay 300
 
@@ -61,28 +61,30 @@ void _d(int yellow) {
   //digitalWrite(dirpin, yellow);
 }
 
-void _f(int yellow) {
+void _f(int yellow, int panel) {
   delayMicroseconds(dataDelayMicro);
-  PORTC |= 0x4 | (0x1 << (~yellow & 0x1));
+  PORTC |= (0x4 << (panel > 0 ? 1 : 0)) | (0x1 << (~yellow & 0x1));
   delayMicroseconds(etime);
   PORTC &= ~cmask;
 }
 
-void flip(int x, int y, int yellow) {
+void flip(int x, int y, int yellow, int panel) {
   _x(x);
   _y(y);
   _d(yellow);
-  _f(yellow);
+  _f(yellow, panel);
 }
 
 void clear_dots(int yellow) {
   _d(yellow);
-  for(int y = 0; y < 24; y++) {
-    _y(y);
-    for(int x = 0; x < 28; x++) {
-      _x(x);
-      _f(yellow);
-      delayMicroseconds(first_flip_delay);
+  for(int panel = 0; panel < 2; panel++) {
+    for(int y = 0; y < 24; y++) {
+      _y(y);
+      for(int x = 0; x < 28; x++) {
+        _x(x);
+        _f(yellow, panel);
+        delayMicroseconds(first_flip_delay);
+      }
     }
   }
 }
@@ -93,12 +95,12 @@ void serialEvent() {
     buffer[0] = (int)Serial.read();
     buffer[1] = (int)Serial.read();
     buffer[2] = (int)Serial.read();
-    if(buffer[2] == 0x0F) {
+    if(buffer[2] == 0xF0) {
       clear_dots(1);
-    } else if(buffer[2] == 0x0E) {
+    } else if(buffer[2] == 0xE0) {
       clear_dots(0);
     } else {
-      flip(buffer[0], buffer[1], buffer[2]);
+      flip(buffer[0], buffer[1], buffer[2] & 0x1, buffer[2] >> 1);
     }
   }
 }

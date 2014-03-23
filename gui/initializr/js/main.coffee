@@ -113,10 +113,10 @@ $ () ->
 	draw = SVG('mainthing').size (w+b)*28, (w+b)*24
 	$('#blackbtn').click (e) ->
 		cell.clear(false)
-		sendWS 0,0,0,14
+		sendWS 0,0,0,224
 	$('#yellowbtn').click (e) ->
 		cell.clear(true)
-		sendWS 0,0,0,15
+		sendWS 0,0,0,240
 
 	new cell(draw, Math.floor(t/24), t%24, w, b) for t in [0..((28*24)-1)]
 
