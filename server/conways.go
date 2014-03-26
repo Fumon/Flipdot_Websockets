@@ -59,7 +59,7 @@ func (b Board) GetCoord(x, y int) bool {
 	b.yboards*yboardsize {
 		return false
 	}
-	return b.cur[b.ToInd(x,y)]
+	return b.GetInd(b.ToInd(x,y))
 }
 
 func (b Board) GetInd(index int) bool {
@@ -143,10 +143,10 @@ func (g *Game) Update() {
 		// Convert to coordinates
 		x, y := g.ToCoords(c.index)
 		bytes := Bytes(x, y, c.dir)
-		log.Println(Bytes)
 		g.serial.Write(bytes)
 	}
 	g.ToChange = 0
+	time.Sleep(4 * time.Second)
 }
 
 func (g *Game) Scramble() {
@@ -241,6 +241,15 @@ func main() {
 
 	log.Println("Sending Scramble")
 	g.Update()
+
+	gens := 0
+	for {
+	g.Step()
+	g.Update()
+	gens++
+	log.Println("Gen -- ", gens)
+	}
+
 
 	for {}
 }
