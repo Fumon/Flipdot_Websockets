@@ -59,7 +59,7 @@ func (b Board) GetCoord(x, y int) bool {
 	b.yboards*yboardsize {
 		return false
 	}
-	return b.curp[ToInd(x,y)]
+	return b.cur[b.ToInd(x,y)]
 }
 
 func (b Board) GetInd(index int) bool {
@@ -96,15 +96,14 @@ type Change struct {
 	dir bool // t/f on/off
 }
 
-func Bytes(c Change) (b []byte) {
-	xb := c.x / xboardsize // x board number
+func Bytes(x,y int, dir bool) (b []byte) {
+	xb := x / xboardsize // x board number
 	// TODO: Implement y board integration
-	// yb := c.y / yboardsize // y board number
 	b = make([]byte, 3)
-	b[0] = byte(c.x % xboardsize) // x coord
-	b[1] = byte(c.y % yboardsize) // y coord
+	b[0] = byte(x % xboardsize) // x coord
+	b[1] = byte(y % yboardsize) // y coord
 	b[2] = (byte(xb) << 1)
-	if c.dir {
+	if dir {
 		b[2] |= 0x1
 	}
 
@@ -129,35 +128,39 @@ func NewGame(xboards int, yboards int, serial io.ReadWriteCloser) Game {
 	}
 }
 
-func (g Game) AddChange(index int, dir bool) {
+func (g *Game) AddChange(index int, dir bool) {
 	c := &(g.Changeset[g.ToChange])
 	c.index = index
 	c.dir = dir
 	g.ToChange++
 }
 
-func (g Game) Update() {
+func (g *Game) Update() {
+	log.Println(g.ToChange, " Changes")
 	for i := 0; i < g.ToChange; i++ {
 		c := g.Changeset[i]
 		g.SetInd(c.index, c.dir)
-		g.serial.Write(Bytes(c))
+		// Convert to coordinates
+		x, y := g.ToCoords(c.index)
+		bytes := Bytes(x, y, c.dir)
+		log.Println(Bytes)
+		g.serial.Write(bytes)
 	}
 	g.ToChange = 0
 }
 
-func (g Game) Scramble() {
+func (g *Game) Scramble() {
 	for i := 0; i < g.boardsize; i++ {
 		r := rand.Float32()
 		if r > 0.5 {
 			g.AddChange(i, true)
 		}
 	}
-	g.Update()
 }
 
 // Takes a boolean array of 8 cell's and the target cell's alive status and
 // returns whether the target cell should live or die.
-func (g Game) returnAlive(target bool, set []bool) bool {
+func (g *Game) returnAlive(target bool, set []bool) bool {
 	// Sum the alive cells
 	sum := 0
 	for _, cell := range(set) {
@@ -178,10 +181,12 @@ func (g Game) returnAlive(target bool, set []bool) bool {
 	} else if sum == repro {
 		return true
 	}
+
+	return false
 }
 
 // Stages one step of game of life in the changeset
-func (g Game) Step() {
+func (g *Game) Step() {
 	for i := 0; i < g.boardsize; i++ {
 		// Get current state
 		cur := g.GetInd(i)
@@ -227,11 +232,15 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create game
-	g := NewGame(2, 1, s)
+	gp := NewGame(2, 1, s)
+	g := &gp
 
-	time.Sleep(4 * time.Second)
 	// Scramble
 	g.Scramble()
+	time.Sleep(4 * time.Second)
+
+	log.Println("Sending Scramble")
+	g.Update()
 
 	for {}
 }
