@@ -9,8 +9,20 @@ import (
 	"time"
 )
 
+
+// Default set to my large boards
 const xboardsize int = 28
 const yboardsize int = 24
+
+// Conways rules
+//
+// If Alive
+const underpop = 2 // Less than = dead
+const staymin = 2
+const staymax = 3
+const overpop = 3 // Greater than = dead
+// If Dead
+const repro = 3 // Equal to = alive
 
 type Board struct {
 	cur []bool // t/f alive/dead
@@ -41,6 +53,7 @@ func (b Board) ToInd(x, y int) int {
 	return (y * (xboardsize * b.xboards)) + x
 }
 
+// Get the value of a coordinate, returning false when outside bounds.
 func (b Board) GetCoord(x, y int) bool {
 	if x < 0 || x >= b.xboards*xboardsize || y < 0 || y >
 	b.yboards*yboardsize {
@@ -49,10 +62,34 @@ func (b Board) GetCoord(x, y int) bool {
 	return b.curp[ToInd(x,y)]
 }
 
+func (b Board) GetInd(index int) bool {
+	if index < 0 || index >= b.boardsize {
+		return false
+	}
+
+	return b.cur[index]
+}
+
 func (b Board) SetInd(index int, value bool) {
 	b.cur[index] = value
 }
 
+// Get the surrounding 8 cells of an index
+func (b Board) GetSurrounding(ind int) []bool {
+	// Convert to coordinates
+	x, y := b.ToCoords(ind)
+
+	return []bool{
+		b.GetCoord(x-1, y-1), // Above
+		b.GetCoord(x, y-1),
+		b.GetCoord(x+1, y-1),
+		b.GetCoord(x-1, y+1), // Below
+		b.GetCoord(x, y+1),
+		b.GetCoord(x+1, y+1),
+		b.GetCoord(x-1, y), // Left
+		b.GetCoord(x+1, y), // Right
+	}
+}
 
 type Change struct {
 	index int
@@ -92,6 +129,13 @@ func NewGame(xboards int, yboards int, serial io.ReadWriteCloser) Game {
 	}
 }
 
+func (g Game) AddChange(index int, dir bool) {
+	c := &(g.Changeset[g.ToChange])
+	c.index = index
+	c.dir = dir
+	g.ToChange++
+}
+
 func (g Game) Update() {
 	for i := 0; i < g.ToChange; i++ {
 		c := g.Changeset[i]
@@ -105,13 +149,49 @@ func (g Game) Scramble() {
 	for i := 0; i < g.boardsize; i++ {
 		r := rand.Float32()
 		if r > 0.5 {
-			c := &(g.Changeset[g.ToChange])
-			c.index = i
-			c.dir = true
-			g.ToChange++
+			g.AddChange(i, true)
 		}
 	}
 	g.Update()
+}
+
+// Takes a boolean array of 8 cell's and the target cell's alive status and
+// returns whether the target cell should live or die.
+func (g Game) returnAlive(target bool, set []bool) bool {
+	// Sum the alive cells
+	sum := 0
+	for _, cell := range(set) {
+		if cell {
+			sum++
+		}
+	}
+
+	// Compare with rules
+	if target {
+		if sum < underpop {
+			return false
+		} else if sum >= staymin && sum <= staymax {
+			return true
+		} else if sum > overpop {
+			return false
+		}
+	} else if sum == repro {
+		return true
+	}
+}
+
+// Stages one step of game of life in the changeset
+func (g Game) Step() {
+	for i := 0; i < g.boardsize; i++ {
+		// Get current state
+		cur := g.GetInd(i)
+
+		n := g.returnAlive(cur, g.GetSurrounding(i))
+
+		if n != cur { // Create a change
+			g.AddChange(i, n)
+		}
+	}
 }
 
 // Flipdot Functions
