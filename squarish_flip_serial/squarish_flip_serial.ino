@@ -99,7 +99,11 @@ void serialEvent() {
       clear_dots(1);
     } else if(buffer[2] == 0xE0) {
       clear_dots(0);
-    } else {
+    } else if(buffer[2] == 0xD0){ // Ack request
+      delay(1);
+      Serial.print("H");
+    }
+    else {
       flip(buffer[0], buffer[1], buffer[2] & 0x1, buffer[2] >> 1);
     }
   }

@@ -146,7 +146,25 @@ func (g *Game) Update() {
 		g.serial.Write(bytes)
 	}
 	g.ToChange = 0
-	time.Sleep(4 * time.Second)
+
+	g.serial.Write([]byte{0x00, 0x00, 0xD0}) // Ack request
+	// Wait for ack
+	buf := make([]byte, 1)
+	for {
+		_, err := g.serial.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				continue
+			} else {
+				log.Fatalln("Error reading from device: ", err)
+			}
+		}
+
+		if buf[0] == 'H' {
+			break
+		}
+	}
+
 }
 
 func (g *Game) Scramble() {
@@ -178,8 +196,12 @@ func (g *Game) returnAlive(target bool, set []bool) bool {
 		} else if sum > overpop {
 			return false
 		}
-	} else if sum == repro {
-		return true
+	} else {
+		if sum == repro {
+			return true
+		} else {
+			return false
+		}
 	}
 
 	return false
