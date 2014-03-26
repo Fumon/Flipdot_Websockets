@@ -1,11 +1,12 @@
 package main
 
 import (
+	"github.com/tarm/goserial"
+	"io"
 	"log"
 	"os"
 	"math/rand"
 	"time"
-	"fmt"
 )
 
 const xboardsize int = 28
@@ -64,15 +65,17 @@ type Game struct {
 	Board
 	Changeset []Change
 	ToChange int
+	serial io.ReadWriteCloser
 }
 
-func NewGame(xboards int, yboards int) Game {
+func NewGame(xboards int, yboards int, serial io.ReadWriteCloser) Game {
 	b := NewBoard(xboards, yboards)
 	c := make([]Change, b.boardsize)
 	return Game{
 		NewBoard(xboards, yboards),
 		c,
 		0,
+		serial,
 	}
 }
 
@@ -80,7 +83,7 @@ func (g Game) Update() {
 	for i := 0; i < g.ToChange; i++ {
 		c := g.Changeset[i]
 		g.cur[g.ToInd(c.x, c.y)] = c.dir
-		os.Stdout.Write(Bytes(c))
+		g.serial.Write(Bytes(c))
 		//os.Stdout.Sync()
 		//fmt.Fprintln(os.Stderr, g.ToInd(c.x, c.y), "\tx,", c.x," y,",
 		//c.y, ":\n\t", Bytes(c))
@@ -112,20 +115,33 @@ func Clear(state bool) []byte {
 
 func main() {
 	log.Println("Life begins")
+
+	// Open serial port
+	log.Print("Opening Serial Port... ")
+	c := &serial.Config{Name: os.Args[1], Baud: 9600}
+	s, err := serial.OpenPort(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Done")
+
+	log.Print("Sending Clear... ")
 	// Clear
-		os.Stdout.Write(Clear(false))
+	_, err = s.Write([]byte{0x00, 0x00, 0xF0})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Sent")
 
 	// Seed randomness
 	rand.Seed(time.Now().UnixNano())
 
 	// Create game
-	g := NewGame(2, 1)
+	g := NewGame(2, 1, s)
 
 	time.Sleep(1 * time.Second)
 	// Scramble
 	g.Scramble()
 
-	os.Stdout.Sync()
-
-	time.Sleep(10 * time.Second)
+	for {}
 }
