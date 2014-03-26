@@ -1,0 +1,4 @@
+#!/bin/sh
+stty -F /dev/ttyUSB2 cs8 9600 ignbrk -brkint -imaxbel -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoctl -echoke noflsh -ixon -crtscts
+socat tcp-listen:7778,fork /dev/ttyUSB2 &
+./conways | socat stdin tcp-connect:localhost:7778
