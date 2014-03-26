@@ -41,8 +41,21 @@ func (b Board) ToInd(x, y int) int {
 	return (y * (xboardsize * b.xboards)) + x
 }
 
+func (b Board) GetCoord(x, y int) bool {
+	if x < 0 || x >= b.xboards*xboardsize || y < 0 || y >
+	b.yboards*yboardsize {
+		return false
+	}
+	return b.curp[ToInd(x,y)]
+}
+
+func (b Board) SetInd(index int, value bool) {
+	b.cur[index] = value
+}
+
+
 type Change struct {
-	x,y int
+	index int
 	dir bool // t/f on/off
 }
 
@@ -82,11 +95,8 @@ func NewGame(xboards int, yboards int, serial io.ReadWriteCloser) Game {
 func (g Game) Update() {
 	for i := 0; i < g.ToChange; i++ {
 		c := g.Changeset[i]
-		g.cur[g.ToInd(c.x, c.y)] = c.dir
+		g.SetInd(c.index, c.dir)
 		g.serial.Write(Bytes(c))
-		//os.Stdout.Sync()
-		//fmt.Fprintln(os.Stderr, g.ToInd(c.x, c.y), "\tx,", c.x," y,",
-		//c.y, ":\n\t", Bytes(c))
 	}
 	g.ToChange = 0
 }
@@ -96,7 +106,7 @@ func (g Game) Scramble() {
 		r := rand.Float32()
 		if r > 0.5 {
 			c := &(g.Changeset[g.ToChange])
-			c.x, c.y = g.ToCoords(i)
+			c.index = i
 			c.dir = true
 			g.ToChange++
 		}
@@ -127,7 +137,7 @@ func main() {
 
 	log.Print("Sending Clear... ")
 	// Clear
-	_, err = s.Write([]byte{0x00, 0x00, 0xF0})
+	_, err = s.Write(Clear(false))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -139,7 +149,7 @@ func main() {
 	// Create game
 	g := NewGame(2, 1, s)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(4 * time.Second)
 	// Scramble
 	g.Scramble()
 
