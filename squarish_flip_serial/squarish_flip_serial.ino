@@ -89,30 +89,6 @@ void clear_dots(int yellow) {
   }
 }
 
-void serialEvent() {
-  if(Serial.available() >= 3) {
-    int buffer[3] = {
-    };
-    buffer[0] = (int)Serial.read();
-    buffer[1] = (int)Serial.read();
-    buffer[2] = (int)Serial.read();
-    if(buffer[2] == 0xF0) {
-      clear_dots(1);
-    } 
-    else if(buffer[2] == 0xE0) {
-      clear_dots(0);
-    } 
-    else if(buffer[2] == 0xD0){ // Ack request
-      //delay(1);
-      Serial.print("H");
-    }
-    else {
-      flip(buffer[0], buffer[1], buffer[2] & 0x1, buffer[2] >> 1
-      );
-    }
-  }
-}
-
 void setup() {
   DDRD |= dmask;
   DDRB |= bmask;
@@ -123,11 +99,32 @@ void setup() {
   pinMode(dirpin, OUTPUT);
   digitalWrite(dirpin, LOW);
   clear_dots(0);
-  Serial.begin(9600);
+  Serial.begin(57600);
 }
 
+#define bufsize 512
+char buffer[3*bufsize] = {};
+int avail, n;
 void loop() {
-  ;
+  if((avail = Serial.available()) >= 3) {
+    n = 3*min((int)(avail/3), bufsize);
+    Serial.readBytes(buffer, n);
+    for(int i = 0; i < n; i += 3) {
+      switch((int)buffer[i + 2]) {
+      case 0xF0:
+        clear_dots(1);
+        break;
+      case 0xE0:
+        clear_dots(0);
+        break;
+      case 0xD0: // Ack request
+        Serial.print("H");
+        break;
+      default:
+        flip(buffer[i + 0], buffer[i + 1], buffer[i + 2] & 0x1, buffer[i + 2] >> 1);
+      }
+    }
+  }
 }
 
 

@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/tarm/goserial"
 	"io"
 	"log"
-	"os"
 	"math/rand"
+	"os"
 	"time"
-)
 
+	"github.com/tarm/goserial"
+)
 
 // Default set to my large boards
 const xboardsize int = 28
@@ -25,14 +25,14 @@ const overpop = 3 // Greater than = dead
 const repro = 3 // Equal to = alive
 
 type Board struct {
-	cur []bool // t/f alive/dead
-	xboards int
-	yboards int
+	cur       []bool // t/f alive/dead
+	xboards   int
+	yboards   int
 	boardsize int
 }
 
 func NewBoard(xboards int, yboards int) Board {
-	boardsize := (yboards*yboardsize) * (xboards*xboardsize)
+	boardsize := (yboards * yboardsize) * (xboards * xboardsize)
 	b := Board{
 		make([]bool, boardsize),
 		xboards,
@@ -42,7 +42,7 @@ func NewBoard(xboards int, yboards int) Board {
 	return b
 }
 
-func (b Board) ToCoords(i int) (x,y int) {
+func (b Board) ToCoords(i int) (x, y int) {
 	y = i / (xboardsize * b.xboards)
 	x = (i % (xboardsize * b.xboards))
 
@@ -56,10 +56,10 @@ func (b Board) ToInd(x, y int) int {
 // Get the value of a coordinate, returning false when outside bounds.
 func (b Board) GetCoord(x, y int) bool {
 	if x < 0 || x >= b.xboards*xboardsize || y < 0 || y >
-	b.yboards*yboardsize {
+		b.yboards*yboardsize {
 		return false
 	}
-	return b.GetInd(b.ToInd(x,y))
+	return b.GetInd(b.ToInd(x, y))
 }
 
 func (b Board) GetInd(index int) bool {
@@ -93,10 +93,10 @@ func (b Board) GetSurrounding(ind int) []bool {
 
 type Change struct {
 	index int
-	dir bool // t/f on/off
+	dir   bool // t/f on/off
 }
 
-func Bytes(x,y int, dir bool) (b []byte) {
+func Bytes(x, y int, dir bool) (b []byte) {
 	xb := x / xboardsize // x board number
 	// TODO: Implement y board integration
 	b = make([]byte, 3)
@@ -113,8 +113,8 @@ func Bytes(x,y int, dir bool) (b []byte) {
 type Game struct {
 	Board
 	Changeset []Change
-	ToChange int
-	serial io.ReadWriteCloser
+	ToChange  int
+	serial    io.ReadWriteCloser
 }
 
 func NewGame(xboards int, yboards int, serial io.ReadWriteCloser) Game {
@@ -181,7 +181,7 @@ func (g *Game) Scramble() {
 func (g *Game) returnAlive(target bool, set []bool) bool {
 	// Sum the alive cells
 	sum := 0
-	for _, cell := range(set) {
+	for _, cell := range set {
 		if cell {
 			sum++
 		}
@@ -223,7 +223,7 @@ func (g *Game) Step() {
 
 // Flipdot Functions
 func Clear(state bool) []byte {
-	if(state) {
+	if state {
 		return []byte{0x00, 0x00, 0xF0}
 	} else {
 		return []byte{0x00, 0x00, 0xE0}
@@ -235,7 +235,7 @@ func main() {
 
 	// Open serial port
 	log.Print("Opening Serial Port... ")
-	c := &serial.Config{Name: os.Args[1], Baud: 9600}
+	c := &serial.Config{Name: os.Args[1], Baud: 57600}
 	s, err := serial.OpenPort(c)
 	if err != nil {
 		log.Fatal(err)
@@ -254,7 +254,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Create game
-	gp := NewGame(2, 1, s)
+	gp := NewGame(3, 1, s)
 	g := &gp
 
 	// Scramble
@@ -266,12 +266,12 @@ func main() {
 
 	gens := 0
 	for {
-	g.Step()
-	g.Update()
-	gens++
-	log.Println("Gen -- ", gens)
+		g.Step()
+		g.Update()
+		gens++
+		log.Println("Gen -- ", gens)
 	}
 
-
-	for {}
+	for {
+	}
 }
