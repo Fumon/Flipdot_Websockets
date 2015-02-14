@@ -1,3 +1,8 @@
+#include "./font5x7.h"
+#include <avr/pgmspace.h>
+
+#define pktsize 4
+
 #define dmask 0x7C
 #define bmask 0x1F
 #define cmask 0x3F
@@ -8,9 +13,12 @@
 #define state2 0x6
 
 #define dataDelayMicro 10
-#define etime 200
+#define etime 300
 
 #define first_flip_delay 300
+
+#define pheight 24
+#define pwidth 28
 
 void resetPins() {
   PORTD &= ~dmask;
@@ -89,6 +97,66 @@ void clear_dots(int yellow) {
   }
 }
 
+static unsigned char *fontsByWidth[] = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  Font5x7
+};
+
+int fwidth = 5;
+int fheight = 7;
+unsigned char *font = &Font5x7[0];
+
+// Cursor (Upper left origin)
+int fcx = 0;
+int fcy = 0;
+
+void print_character(char c) {
+  int x;
+  int y;
+  unsigned char mask;
+  int aindex = ((int)c - 0x20) * fwidth;
+  unsigned char line;
+  int yellow;
+  // TODO: clamp the x and y values so we don't bleed over
+  // Loop over character
+  for(x = 0; x < fwidth; ++x) {
+    line = pgm_read_byte(&Font5x7[aindex + x]);
+    for(y = 0, mask = 0x1; y < fheight; ++y, mask = mask << 1) {
+      if(line & mask) {
+        yellow = 1;
+      } 
+      else {
+        yellow = 0;
+      }
+      flip((x + fcx) % pwidth, 
+      (y + fcy),
+      yellow,
+      (x + fcx) / pwidth);
+    }
+  }
+
+  // Change cursor
+  fcx += fwidth + 1;
+}
+
+void move_cursor(int x, int y) {
+  fcx = x;
+  fcy = y;
+}
+
+void reset_cursor() {
+  move_cursor(0,0); 
+}
+
+void set_font_dim(int w, int h) {
+  font = fontsByWidth[w];
+  fwidth = w;
+  fheight = h;
+}
+
 void setup() {
   DDRD |= dmask;
   DDRB |= bmask;
@@ -102,15 +170,17 @@ void setup() {
   Serial.begin(57600);
 }
 
-#define bufsize 512
-char buffer[3*bufsize] = {};
+#define bufsize 256
+char buffer[pktsize*bufsize] = {
+};
 int avail, n;
 void loop() {
-  if((avail = Serial.available()) >= 3) {
-    n = 3*min((int)(avail/3), bufsize);
+  avail = Serial.available();
+  if(avail > 0 && (avail % pktsize == 0)) {
+    n = pktsize*min((int)(avail/pktsize), bufsize);
     Serial.readBytes(buffer, n);
-    for(int i = 0; i < n; i += 3) {
-      switch((int)buffer[i + 2]) {
+    for(int i = 0; i < n; i += pktsize) {
+      switch((int)buffer[i + (pktsize - 1)]) {
       case 0xF0:
         clear_dots(1);
         break;
@@ -120,11 +190,25 @@ void loop() {
       case 0xD0: // Ack request
         Serial.print("H");
         break;
-      default:
+      case 0xC0: // Print character
+        print_character(buffer[i + 0]);
+        break;
+      case 0xB0: // Move character cursor
+        move_cursor((int)buffer[i + 0] + (pwidth * (int)buffer[i + 2]), buffer[i + 1]);
+        break;
+      case 0xA0: // Reset character cursor
+        reset_cursor();
+        break;
+      case 0x90: // Set font dimentions
+        set_font_dim(buffer[i + 0], buffer[i + 1]);
+        break;
+      case 0x80:
         flip(buffer[i + 0], buffer[i + 1], buffer[i + 2] & 0x1, buffer[i + 2] >> 1);
+        break;
       }
     }
   }
 }
+
 
 
