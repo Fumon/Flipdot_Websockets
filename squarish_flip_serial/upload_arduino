@@ -1,1 +1,3 @@
-ssh root@flipdot 'stty -F /dev/ttyUSB0 hupcl; stty -F /dev/ttyUSB0 hupcl'; /usr/share/arduino/hardware/tools/avrdude -C /usr/share/arduino/hardware/tools/avrdude.conf -DV -p atmega328p -P net:flipdot:9000 -c arduino -b 57600 -U flash:w:squarish_flip_serial.cpp.hex:i
+#! /bin/sh
+ssh root@flipdot 'stty -F /dev/ttyUSB0 hupcl; stty -F /dev/ttyUSB0 hupcl';
+/usr/share/arduino/hardware/tools/avrdude -C /usr/share/arduino/hardware/tools/avrdude.conf -DV -p atmega328p -P net:flipdot:9000 -c arduino -b 57600 -U flash:w:squarish_flip_serial.cpp.hex:i
